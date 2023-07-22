@@ -8,6 +8,18 @@ from pynput.keyboard import Controller, Key, Listener
 from robosuite.devices import Device
 from robosuite.utils.transform_utils import rotation_matrix
 
+import websocket
+import time
+import json
+
+try:
+    import thread
+except ImportError:
+    import _thread as thread
+
+class AKey:
+    def __init__(self, char):
+        self.char=char
 
 class Android(Device):
     """
@@ -17,7 +29,7 @@ class Android(Device):
         rot_sensitivity (float): Magnitude of scale input rotation commands scaling
     """
 
-    def __init__(self, pos_sensitivity=1.0, rot_sensitivity=1.0):
+    def __init__(self, serverIP, pos_sensitivity=1.0, rot_sensitivity=1.0):
 
         self._display_controls()
         self._reset_internal_state()
@@ -29,11 +41,93 @@ class Android(Device):
         self.pos_sensitivity = pos_sensitivity
         self.rot_sensitivity = rot_sensitivity
 
-        # make a thread to listen to keyboard and register our callback functions
+        # # make a thread to listen to keyboard and register our callback functions
         self.listener = Listener(on_press=self.on_press, on_release=self.on_release)
 
         # start listening
         self.listener.start()
+
+        # websocket.enableTrace(True)
+        self.ws = websocket.WebSocketApp(f"ws://{serverIP}:8080",  on_message = self.ws_on_message,  on_error = self.ws_on_error, on_close = self.ws_on_close)
+        self.ws.on_open = self.ws_on_open
+
+        self.latest_msg=None
+        self.time_last_ms = time.time_ns() // 1_000_000
+
+        self.ctrl_freq = 50 #20
+
+        thread.start_new_thread(self.run, ())
+
+    def run(self, *args):
+            self.ws.run_forever()
+
+
+    def ws_on_message(self, ws, message): 
+        self.time_current_ms = time.time_ns() // 1_000_000
+        dt = self.time_current_ms - self.time_last_ms
+        
+        # if dt<1000.0/self.ctrl_freq: 
+        #     return
+        
+        self.time_last_ms = self.time_current_ms
+
+        try:
+            self.latest_msg=json.loads(message)
+            type=self.latest_msg['type']
+            if 'gyro' in type:
+                y=self.latest_msg['x']
+                x=self.latest_msg['y']
+
+                # if x>2.0:
+                #     self.on_press(AKey('s'))
+                # elif x<-2.0:
+                #     self.on_press(AKey('w'))
+                
+                # if y>2.0:
+                #     self.on_press(AKey('a'))
+                # elif y<-2.0:
+                #     self.on_press(AKey('d'))
+
+                s=0.05
+                self.pos[0] += self._pos_step * x*s  # x
+                self.pos[1] -= self._pos_step * y*s  # y
+
+                return 
+            
+
+            data=self.latest_msg['data']
+            if data=='X+':
+                self.on_press(AKey('s'))
+            elif data=='X-':
+                self.on_press(AKey('w'))
+            elif data=='Y+':
+                self.on_press(AKey('a'))
+            elif data=='Y-':
+                self.on_press(AKey('d'))
+            elif data=='up':
+                self.on_press(AKey('r'))
+            elif data=='down':
+                self.on_press(AKey('f'))
+            elif data=='open':
+                self.grasp = False
+            elif data=='close':
+                self.grasp = True
+
+        except:
+            self.latest_msg=message
+
+        print(message)
+
+    def ws_on_error(self, ws, error):
+        print(error)
+
+    def ws_on_close(self, ws):
+        print("### closed ###")
+
+    def ws_on_open(self, ws):
+        print('onopen')
+
+
 
     @staticmethod
     def _display_controls():
@@ -96,6 +190,7 @@ class Android(Device):
         Args:
             key (str): key that was pressed
         """
+        # print('onpress', key)
 
         try:
             # controls for moving position

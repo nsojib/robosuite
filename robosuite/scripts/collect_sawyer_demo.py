@@ -21,6 +21,9 @@ from robosuite import load_controller_config
 from robosuite.utils.input_utils import input2action
 from robosuite.wrappers import DataCollectionWrapper, VisualizationWrapper
 from robosuite.devices import Keyboard
+# from robosuite.devices import Android
+from android import Android
+
 
 def collect_human_trajectory(env, device, arm, env_configuration):
 
@@ -28,8 +31,8 @@ def collect_human_trajectory(env, device, arm, env_configuration):
     env.reset()
 
     # ID = 2 always corresponds to agentview
-    # env.render()
-    env.render(camera_id=2)
+    env.render()
+    # env.render(camera_id=2)
 
     is_first = True
 
@@ -219,7 +222,8 @@ if __name__ == "__main__":
     env = DataCollectionWrapper(env, tmp_directory)
 
     # initialize device 
-    device = Keyboard(pos_sensitivity=args.pos_sensitivity, rot_sensitivity=args.rot_sensitivity)
+    # device = Keyboard(pos_sensitivity=args.pos_sensitivity, rot_sensitivity=args.rot_sensitivity)
+    device=Android(serverIP="192.168.1.41")
 
     # make a new timestamped directory
     t1, t2 = str(time.time()).split(".")
