@@ -161,6 +161,7 @@ def gather_demonstrations_as_hdf5(directory, out_dir, env_info):
 
     f.close()
 
+# python collect_sawyer_demo.py --directory /home/ns/robosuite_git/demos
 
 if __name__ == "__main__":
     # Arguments
@@ -203,10 +204,12 @@ if __name__ == "__main__":
     env = suite.make(
         **config,
         has_renderer=True,
-        has_offscreen_renderer=False,
+        # has_offscreen_renderer=False,
+        has_offscreen_renderer=True,
         render_camera=args.camera,
         ignore_done=True,
-        use_camera_obs=False,
+        # use_camera_obs=False,
+        use_camera_obs=True,
         reward_shaping=True,
         control_freq=20,
     )
@@ -218,12 +221,14 @@ if __name__ == "__main__":
     env_info = json.dumps(config)
 
     # wrap the environment with data collection wrapper
-    tmp_directory = "/tmp/{}".format(str(time.time()).replace(".", "_"))
+    # tmp_directory = "/tmp/{}".format(str(time.time()).replace(".", "_"))
+    tmp_directory = "{}/{}".format(args.directory, str(time.time()).replace(".", "_"))
+    print('tmp_directory: ', tmp_directory)
     env = DataCollectionWrapper(env, tmp_directory)
 
     # initialize device 
     # device = Keyboard(pos_sensitivity=args.pos_sensitivity, rot_sensitivity=args.rot_sensitivity)
-    device=Android(serverIP="192.168.1.41")
+    device=Android(serverIP="10.0.0.12")
 
     # make a new timestamped directory
     t1, t2 = str(time.time()).split(".")

@@ -11,6 +11,7 @@ Arguments:
 
 Example:
     $ python playback_demonstrations_from_hdf5.py --folder ../models/assets/demonstrations/lift/
+    python playback_demonstrations_from_hdf5.py --folder  /home/ns/robosuite_git/lift_demo
 """
 
 import argparse

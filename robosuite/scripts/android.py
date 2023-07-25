@@ -77,6 +77,7 @@ class Android(Device):
             if 'gyro' in type:
                 y=self.latest_msg['x']
                 x=self.latest_msg['y']
+                test=self.latest_msg['test']
 
                 # if x>2.0:
                 #     self.on_press(AKey('s'))
@@ -89,6 +90,12 @@ class Android(Device):
                 #     self.on_press(AKey('d'))
 
                 s=0.05
+
+                if test:
+                    self.pos[2] += self._pos_step * x*s  # z
+                    return
+                
+                
                 self.pos[0] += self._pos_step * x*s  # x
                 self.pos[1] -= self._pos_step * y*s  # y
 
@@ -108,10 +115,9 @@ class Android(Device):
                 self.on_press(AKey('r'))
             elif data=='down':
                 self.on_press(AKey('f'))
-            elif data=='open':
-                self.grasp = False
-            elif data=='close':
-                self.grasp = True
+            elif data=='gripper':
+                self.grasp = not self.grasp
+
 
         except:
             self.latest_msg=message
@@ -191,6 +197,7 @@ class Android(Device):
             key (str): key that was pressed
         """
         # print('onpress', key)
+        z_scale=0.03;
 
         try:
             # controls for moving position
@@ -203,9 +210,9 @@ class Android(Device):
             elif key.char == "d":
                 self.pos[1] += self._pos_step * self.pos_sensitivity  # inc y
             elif key.char == "f":
-                self.pos[2] -= self._pos_step * self.pos_sensitivity  # dec z
+                self.pos[2] -= self._pos_step * self.pos_sensitivity*z_scale  # dec z
             elif key.char == "r":
-                self.pos[2] += self._pos_step * self.pos_sensitivity  # inc z
+                self.pos[2] += self._pos_step * self.pos_sensitivity*z_scale  # inc z
 
             # controls for moving orientation
             elif key.char == "z":
