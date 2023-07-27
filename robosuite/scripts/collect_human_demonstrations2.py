@@ -20,19 +20,25 @@ import robosuite.macros as macros
 from robosuite import load_controller_config
 from robosuite.utils.input_utils import input2action
 from robosuite.wrappers import DataCollectionWrapper, VisualizationWrapper
-from robosuite.devices import Keyboard
-# from robosuite.devices import Android
 from android import Android
 
-
 def collect_human_trajectory(env, device, arm, env_configuration):
+    """
+    Use the device (keyboard or SpaceNav 3D mouse) to collect a demonstration.
+    The rollout trajectory is saved to files in npz format.
+    Modify the DataCollectionWrapper wrapper to add new fields or change data formats.
 
+    Args:
+        env (MujocoEnv): environment to control
+        device (Device): to receive controls from the device
+        arms (str): which arm to control (eg bimanual) 'right' or 'left'
+        env_configuration (str): specified environment configuration
+    """
 
     env.reset()
-
+    
     # ID = 2 always corresponds to agentview
     env.render()
-    # env.render(camera_id=2)
 
     is_first = True
 
@@ -40,11 +46,14 @@ def collect_human_trajectory(env, device, arm, env_configuration):
     device.start_control()
 
     # Loop until we get a reset from the input or the task completes
-    while True: 
-        active_robot = env.robots[arm == "left"]
+    while True:
+        # Set active robot
+        active_robot = env.robots[0] if env_configuration == "bimanual" else env.robots[arm == "left"]
 
         # Get the newest action
-        action, grasp = input2action(device=device, robot=active_robot, active_arm=arm, env_configuration=env_configuration)
+        action, grasp = input2action(
+            device=device, robot=active_robot, active_arm=arm, env_configuration=env_configuration
+        )
 
         # If action is none, then this a reset so we should break
         if action is None:
@@ -100,7 +109,7 @@ def gather_demonstrations_as_hdf5(directory, out_dir, env_info):
     """
 
     hdf5_path = os.path.join(out_dir, "demo.hdf5")
-    print(f"Gathering demonstrations into hdf5 file: {hdf5_path}")
+    print(f'saving to {hdf5_path}')
     f = h5py.File(hdf5_path, "w")
 
     # store some metadata in the attributes of one group
@@ -108,10 +117,8 @@ def gather_demonstrations_as_hdf5(directory, out_dir, env_info):
 
     num_eps = 0
     env_name = None  # will get populated at some point
-
     eps=os.listdir(directory)
     print(f'Total number of episodes: {len(eps)}')
-    
     for ep_directory in eps:
 
         state_paths = os.path.join(directory, ep_directory, "state_*.npz")
@@ -165,7 +172,6 @@ def gather_demonstrations_as_hdf5(directory, out_dir, env_info):
 
     f.close()
 
-# python collect_sawyer_demo.py --directory /home/ns/robosuite_git/demos
 
 if __name__ == "__main__":
     # Arguments
@@ -176,7 +182,7 @@ if __name__ == "__main__":
         default=os.path.join(suite.models.assets_root, "demonstrations"),
     )
     parser.add_argument("--environment", type=str, default="Lift")
-    parser.add_argument("--robots", nargs="+", type=str, default="Sawyer", help="Which robot(s) to use in the env")
+    parser.add_argument("--robots", nargs="+", type=str, default="Panda", help="Which robot(s) to use in the env")
     parser.add_argument(
         "--config", type=str, default="single-arm-opposed", help="Specified environment configuration if necessary"
     )
@@ -208,12 +214,10 @@ if __name__ == "__main__":
     env = suite.make(
         **config,
         has_renderer=True,
-        # has_offscreen_renderer=False,
-        has_offscreen_renderer=True,
+        has_offscreen_renderer=False,
         render_camera=args.camera,
         ignore_done=True,
-        # use_camera_obs=False,
-        use_camera_obs=True,
+        use_camera_obs=False,
         reward_shaping=True,
         control_freq=20,
     )
@@ -225,13 +229,9 @@ if __name__ == "__main__":
     env_info = json.dumps(config)
 
     # wrap the environment with data collection wrapper
-    # tmp_directory = "/tmp/{}".format(str(time.time()).replace(".", "_"))
-    tmp_directory = "{}/{}".format(args.directory, str(time.time()).replace(".", "_"))
-    print('tmp_directory: ', tmp_directory)
+    tmp_directory = "/tmp/{}".format(str(time.time()).replace(".", "_"))
     env = DataCollectionWrapper(env, tmp_directory)
 
-    # initialize device 
-    # device = Keyboard(pos_sensitivity=args.pos_sensitivity, rot_sensitivity=args.rot_sensitivity)
     device=Android(serverIP="10.0.0.12")
 
     # make a new timestamped directory
